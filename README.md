@@ -73,3 +73,64 @@ Use an if statement to find the first even number in the list.
 When you find it, print its index and value, then stop checking the rest of the
 list.
 If no even number is found, print a message like "No even numbers".
+
+
+# --
+
+Here are the 10 practical exercises for practicing `if` statements, `for` loops, lists, and functions, presented without the solutions.
+### 1. The Even Number Filter
+- **Goal:** Create a function called `filter_evens` that takes a list of integers as an argument. The function should create and return a new list containing only the even numbers from the original list.
+- **Key Concepts:** Iterating through a list with `for`, using the modulo operator `%` to check for divisibility inside an `if` statement.
+
+### 2. The Grade Calculator
+- **Goal:** Write a function called `assign_grades` that accepts a list of student scores (numbers 0-100). Loop through the scores and print the corresponding letter grade for each:
+    - 90 and above: "A"
+    - 80 to 89: "B"
+    - 70 to 79: "C"
+    - Below 70: "F"
+
+- **Key Concepts:** Using `if-elif-else` chains inside a `for` loop.
+
+### 3. Find the Maximum (Manual)
+- **Goal:** Write a function called `find_max` that takes a list of numbers and returns the largest number. **Constraint:** You cannot use Python's built-in `max()` function. You must implement the logic yourself.
+- **Key Concepts:** Creating a variable to track the "current winner" and updating it as you loop through the list.
+
+### 4. The Shopping List Checker
+- **Goal:** Define a list called `stock` with 4-5 items (e.g., "apple", "milk"). Write a function that takes a different list (a user's `shopping_list`) as an argument. Loop through the user's list and print whether each item is currently in stock or out of stock.
+- **Key Concepts:** Checking for membership using the `in` keyword combined with `if/else`.
+
+### 5. Word Length Sorter
+- **Goal:** Create a function that takes a list of words. It should create two new empty lists: `short_words` and `long_words`. Loop through the input:
+    - If a word has fewer than 5 letters, add it to `short_words`.
+    - If a word has 5 or more letters, add it to `long_words`.
+    - Return both lists at the end.
+
+- **Key Concepts:** Using `len()` to check string length and appending to different lists based on a condition.
+
+### 6. Sum of Positive Numbers
+- **Goal:** Write a function called `sum_positives` that accepts a list containing both positive and negative integers (e.g., `[10, -5, 20, -3]`). The function should calculate and return the sum of _only_ the positive numbers.
+- **Key Concepts:** Using an "accumulator" variable (like `total = 0`) and an `if` statement to decide when to add to it.
+
+### 7. Count Occurrences (Manual)
+- **Goal:** Write a function called `count_target` that takes two arguments: a list of items and a specific "target" value. The function should return the number of times the target appears in the list. **Constraint:** Do not use the built-in `.count()` method.
+- **Key Concepts:** incrementing a counter variable inside a conditional loop.
+
+### 8. Reverse "A" Words
+- **Goal:** Write a function that takes a list of names (strings). Loop through the list and check if a name starts with the letter "A" (or "a"). If it does, print that name reversed. If it doesn't start with "A", ignore it.
+- **Key Concepts:** String slicing `[::-1]` to reverse, and using `.startswith()` or index `[0]` for the condition.
+
+### 9. FizzBuzz (List Version)
+- **Goal:** Write a function that generates and returns a list of numbers from 1 to 20. However, apply these rules before adding the number to the list:
+    - If the number is divisible by 3, add "Fizz" instead of the number.
+    - If the number is divisible by 5, add "Buzz" instead of the number.
+    - If divisible by both 3 and 5, add "FizzBuzz".
+    - Otherwise, add the number itself.
+
+- **Key Concepts:** Complex logic flow. _Hint: Check for the "FizzBuzz" (divisible by both) condition first!_
+
+### 10. The Password Validator
+- **Goal:** Create a function that accepts a list of potential passwords (strings). The function should return a new list containing only the "valid" passwords. A password is valid if:
+    1. It is at least 8 characters long.
+    2. **AND** it contains at least one number.
+
+- **Key Concepts:** Checking multiple conditions using `and`. You might need a nested loop or a helper check to find if a string contains a digit.
