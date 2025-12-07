@@ -1,5 +1,6 @@
 import chromadb
 from chromadb.config import Settings
+import json
 
 def add_sentences_to_chromadb(sentences, collection_name="sentences_collection"):
     client = chromadb.Client(Settings(
@@ -14,13 +15,17 @@ def add_sentences_to_chromadb(sentences, collection_name="sentences_collection")
     return collection
 
 if __name__ == "__main__":
+    with open("data/finma.txt", "r") as f:
+        contents = f.read()
+    contents = contents.split("\n")
 
-    sentences = [
-        "Go to Florida to pick and eat oranges.",
-        "In England I can learn about Shakespeare.",
-        "My favorite food is pasta.",
-        "I like to hike in the mountains"
-    ]
+    sentences = []
+    for line in contents:
+        if len(line) == 0:
+            continue
+        line = json.loads(line)
+        line = f"{line['title']} {line['link']} {line['pubDate']} {line['description']}"
+        sentences.append(line)
 
     collection = add_sentences_to_chromadb(sentences)
     question = input("Ask a question: ")
