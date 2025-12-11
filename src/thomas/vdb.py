@@ -1,6 +1,9 @@
 import chromadb
 from chromadb.config import Settings
 import json
+import os
+import http.client
+from urllib.parse import urlparse
 
 def add_sentences_to_chromadb(sentences, collection_name="sentences_collection"):
     client = chromadb.Client(Settings(
@@ -13,6 +16,49 @@ def add_sentences_to_chromadb(sentences, collection_name="sentences_collection")
         ids=ids,
     )
     return collection
+
+
+# --- Minimal Ollama client ---
+OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
+OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "llama3.1")
+
+
+def _ollama_generate(prompt: str, model: str = OLLAMA_MODEL) -> str:
+    url = urlparse(OLLAMA_BASE_URL)
+    conn_cls = http.client.HTTPSConnection if url.scheme == "https" else http.client.HTTPConnection
+    conn = conn_cls(url.hostname, url.port or (443 if url.scheme == "https" else 11434), timeout=60)
+    try:
+        body = {"model": model, "prompt": prompt, "stream": False}
+        payload = json.dumps(body).encode("utf-8")
+        headers = {"Content-Type": "application/json"}
+        conn.request("POST", "/api/generate", body=payload, headers=headers)
+        resp = conn.getresponse()
+        data = resp.read().decode("utf-8", errors="replace")
+        if resp.status != 200:
+            raise RuntimeError(f"Ollama generate failed ({resp.status}): {data[:200]}")
+        # Try parse single JSON first
+        try:
+            obj = json.loads(data)
+            if isinstance(obj, dict) and "response" in obj:
+                return str(obj.get("response", "")).strip()
+        except Exception:
+            pass
+        # Fallback: parse JSONL stream concatenation
+        out = []
+        for line in data.splitlines():
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                part = json.loads(line)
+                resp_text = part.get("response")
+                if resp_text:
+                    out.append(resp_text)
+            except Exception:
+                continue
+        return "".join(out).strip()
+    finally:
+        conn.close()
 
 if __name__ == "__main__":
     with open("data/finma.txt", "r") as f:
@@ -33,4 +79,31 @@ if __name__ == "__main__":
         query_texts=[question],
         n_results=2,
     )
-    print(results)
+    print("Raw retrieval results:", results)
+
+    # Pick the highest-score item (first result for the single query)
+    top_doc = None
+    if results and isinstance(results.get("documents"), list) and results["documents"]:
+        # documents is List[List[str]] per query
+        docs_for_query = results["documents"][0]
+        if docs_for_query:
+            top_doc = docs_for_query[0]
+
+    if not top_doc:
+        print("No matching document found in Chroma.")
+    else:
+        prompt = (
+            "You are a helpful assistant. Stay strictly on-topic.\n\n"
+            f"User question: {question}\n\n"
+            "Most relevant source snippet:\n---\n"
+            f"{top_doc}\n"
+            "---\n\n"
+            "Write a detailed elaboration that is derived from the "
+            "information above, and can contain relevant, related materials. "
+            "If the snippet is not relevant, say politely that the source is not relevant."
+        )
+        try:
+            answer = _ollama_generate(prompt)
+            print("\nLLM elaboration (Ollama):\n", answer)
+        except Exception as ex:
+            print("Failed to generate with Ollama:", ex)
