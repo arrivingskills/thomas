@@ -72,12 +72,77 @@ def _text(el: Optional[ET.Element]) -> Optional[str]:
     return txt.strip() or None
 
 
-def write_ndjson(items: Iterable[RssItem], out_path: Path) -> None:
+def _item_key(item: RssItem) -> str:
+    """Return a stable identity key for an RSS item.
+
+    Preference order:
+    - use `link` when available
+    - else fall back to `title|pubDate`
+    - else use the `title` or `pubDate` alone if only one exists
+    - as a last resort, use the JSON string itself
+    """
+    if item.link:
+        return f"link::{item.link.strip()}"
+    if item.title and item.pubDate:
+        return f"title_date::{item.title.strip()}|{item.pubDate.strip()}"
+    if item.title:
+        return f"title_only::{item.title.strip()}"
+    if item.pubDate:
+        return f"date_only::{item.pubDate.strip()}"
+    return "raw::" + json.dumps(asdict(item), sort_keys=True, ensure_ascii=False)
+
+
+def _load_existing_keys(path: Path) -> set[str]:
+    keys: set[str] = set()
+    if not path.exists():
+        return keys
+    try:
+        with path.open("r", encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    obj = json.loads(line)
+                    item = RssItem(
+                        title=obj.get("title"),
+                        link=obj.get("link"),
+                        pubDate=obj.get("pubDate"),
+                        description=obj.get("description"),
+                    )
+                    keys.add(_item_key(item))
+                except Exception:
+                    # If a line is malformed, skip it but keep processing others
+                    continue
+    except FileNotFoundError:
+        pass
+    return keys
+
+
+def write_ndjson(items: Iterable[RssItem], out_path: Path) -> int:
+    """Append only new, unique items to the newline-delimited JSON file.
+
+    Returns the number of items appended.
+    """
     out_path.parent.mkdir(parents=True, exist_ok=True)
-    with out_path.open("w", encoding="utf-8") as f:
-        for it in items:
+
+    existing_keys = _load_existing_keys(out_path)
+    to_append: list[RssItem] = []
+    for it in items:
+        key = _item_key(it)
+        if key not in existing_keys:
+            to_append.append(it)
+            existing_keys.add(key)
+
+    if not to_append:
+        return 0
+
+    with out_path.open("a", encoding="utf-8") as f:
+        for it in to_append:
             f.write(json.dumps(asdict(it), ensure_ascii=False))
             f.write("\n")
+
+    return len(to_append)
 
 
 def main(argv: Optional[List[str]] = None) -> int:
@@ -95,8 +160,8 @@ def main(argv: Optional[List[str]] = None) -> int:
     try:
         xml_bytes = fetch_rss(args.url)
         items = parse_rss(xml_bytes)
-        write_ndjson(items, args.output)
-        print(f"Wrote {len(items)} items to {args.output}")
+        appended = write_ndjson(items, args.output)
+        print(f"Appended {appended} new item(s) to {args.output}")
         return 0
     except Exception as e:
         print(f"Error: {e}", file=sys.stderr)
