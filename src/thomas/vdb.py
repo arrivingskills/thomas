@@ -4,11 +4,15 @@ import json
 import os
 import http.client
 from urllib.parse import urlparse
+from pathlib import Path
+
 
 def add_sentences_to_chromadb(sentences, collection_name="sentences_collection"):
-    client = chromadb.Client(Settings(
-        anonymized_telemetry=False,
-    ))
+    client = chromadb.Client(
+        Settings(
+            anonymized_telemetry=False,
+        )
+    )
     collection = client.get_or_create_collection(name=collection_name)
     ids = [f"sentence-{i}" for i in range(len(sentences))]
     collection.add(
@@ -25,8 +29,14 @@ OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "llama3.1")
 
 def _ollama_generate(prompt: str, model: str = OLLAMA_MODEL) -> str:
     url = urlparse(OLLAMA_BASE_URL)
-    conn_cls = http.client.HTTPSConnection if url.scheme == "https" else http.client.HTTPConnection
-    conn = conn_cls(url.hostname, url.port or (443 if url.scheme == "https" else 11434), timeout=60)
+    conn_cls = (
+        http.client.HTTPSConnection
+        if url.scheme == "https"
+        else http.client.HTTPConnection
+    )
+    conn = conn_cls(
+        url.hostname, url.port or (443 if url.scheme == "https" else 11434), timeout=60
+    )
     try:
         body = {"model": model, "prompt": prompt, "stream": False}
         payload = json.dumps(body).encode("utf-8")
@@ -60,18 +70,38 @@ def _ollama_generate(prompt: str, model: str = OLLAMA_MODEL) -> str:
     finally:
         conn.close()
 
+
 if __name__ == "__main__":
-    with open("data/finma.txt", "r") as f:
+    # Use project-root relative path so running from any cwd works
+    project_root = Path(__file__).resolve().parent.parent.parent
+    finma_path = project_root / "data" / "finma.txt"
+    if not finma_path.exists():
+        raise FileNotFoundError(
+            f"{finma_path} not found. Expected file at project root: {finma_path}"
+        )
+    with finma_path.open("r", encoding="utf-8") as f:
         contents = f.read()
     contents = contents.split("\n")
 
     sentences = []
-    for line in contents:
-        if len(line) == 0:
+    for raw in contents:
+        line = raw.strip()
+        if not line:
             continue
-        line = json.loads(line)
-        line = f"{line['title']} {line['link']} {line['pubDate']} {line['description']}"
-        sentences.append(line)
+        try:
+            obj = json.loads(line)
+            title = obj.get("title", "") or ""
+            link = obj.get("link", "") or ""
+            pubDate = obj.get("pubDate", "") or ""
+            description = obj.get("description", "") or ""
+        except json.JSONDecodeError:
+            parts = [p.strip() for p in line.split(" | ")]
+            title = parts[0] if len(parts) > 0 else ""
+            pubDate = parts[1] if len(parts) > 1 else ""
+            link = parts[2] if len(parts) > 2 else ""
+            description = ""
+        sentence = " ".join(filter(None, (title, link, pubDate, description)))
+        sentences.append(sentence)
 
     collection = add_sentences_to_chromadb(sentences)
     question = input("Ask a question: ")
