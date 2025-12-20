@@ -58,8 +58,10 @@ def parse_rss(xml_bytes: bytes) -> List[RssItem]:
             RssItem(
                 title=_text(entry.find("atom:title", ns)),
                 link=link,
-                pubDate=_text(entry.find("atom:updated", ns)) or _text(entry.find("atom:published", ns)),
-                description=_text(entry.find("atom:summary", ns)) or _text(entry.find("atom:content", ns)),
+                pubDate=_text(entry.find("atom:updated", ns))
+                or _text(entry.find("atom:published", ns)),
+                description=_text(entry.find("atom:summary", ns))
+                or _text(entry.find("atom:content", ns)),
             )
         )
     return items
@@ -76,20 +78,22 @@ def _item_key(item: RssItem) -> str:
     """Return a stable identity key for an RSS item.
 
     Preference order:
-    - use `link` when available
-    - else fall back to `title|pubDate`
-    - else use the `title` or `pubDate` alone if only one exists
+    - use a concatenation of title, pubDate, and link when available
     - as a last resort, use the JSON string itself
     """
-    if item.link:
-        return f"link::{item.link.strip()}"
-    if item.title and item.pubDate:
-        return f"title_date::{item.title.strip()}|{item.pubDate.strip()}"
-    if item.title:
-        return f"title_only::{item.title.strip()}"
-    if item.pubDate:
-        return f"date_only::{item.pubDate.strip()}"
-    return "raw::" + json.dumps(asdict(item), sort_keys=True, ensure_ascii=False)
+    concat = " | ".join(
+        filter(
+            None,
+            (
+                item.title and item.title.strip(),
+                item.pubDate and item.pubDate.strip(),
+                item.link and item.link.strip(),
+            ),
+        )
+    )
+    if concat:
+        return f"raw::{concat}"
+    return "json::" + json.dumps(asdict(item), sort_keys=True, ensure_ascii=False)
 
 
 def _load_existing_keys(path: Path) -> set[str]:
@@ -102,6 +106,7 @@ def _load_existing_keys(path: Path) -> set[str]:
                 line = line.strip()
                 if not line:
                     continue
+                # Try to parse legacy JSON line first
                 try:
                     obj = json.loads(line)
                     item = RssItem(
@@ -111,17 +116,19 @@ def _load_existing_keys(path: Path) -> set[str]:
                         description=obj.get("description"),
                     )
                     keys.add(_item_key(item))
-                except Exception:
-                    # If a line is malformed, skip it but keep processing others
                     continue
+                except Exception:
+                    # Not JSON — treat the raw line as the concatenated key
+                    keys.add(f"raw::{line}")
     except FileNotFoundError:
         pass
     return keys
 
 
 def write_ndjson(items: Iterable[RssItem], out_path: Path) -> int:
-    """Append only new, unique items to the newline-delimited JSON file.
+    """Append only new, unique items to the newline-delimited file.
 
+    Each appended line will be the concatenation: "title | pubDate | link"
     Returns the number of items appended.
     """
     out_path.parent.mkdir(parents=True, exist_ok=True)
@@ -139,14 +146,17 @@ def write_ndjson(items: Iterable[RssItem], out_path: Path) -> int:
 
     with out_path.open("a", encoding="utf-8") as f:
         for it in to_append:
-            f.write(json.dumps(asdict(it), ensure_ascii=False))
+            concat = " | ".join(filter(None, (it.title, it.pubDate, it.link)))
+            f.write(concat)
             f.write("\n")
 
     return len(to_append)
 
 
 def main(argv: Optional[List[str]] = None) -> int:
-    parser = argparse.ArgumentParser(description="Download FINMA RSS and write newline-delimited JSON file.")
+    parser = argparse.ArgumentParser(
+        description="Download FINMA RSS and write newline-delimited JSON file."
+    )
     parser.add_argument(
         "-o",
         "--output",
@@ -154,7 +164,9 @@ def main(argv: Optional[List[str]] = None) -> int:
         default=Path("../../data/finma.txt"),
         help="Output file path (default: data/finma.txt)",
     )
-    parser.add_argument("--url", default=RSS_URL, help="RSS URL to fetch (default: FINMA news RSS)")
+    parser.add_argument(
+        "--url", default=RSS_URL, help="RSS URL to fetch (default: FINMA news RSS)"
+    )
     args = parser.parse_args(argv)
 
     try:
