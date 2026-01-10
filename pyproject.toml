@@ -4,12 +4,13 @@ version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
 authors = [
-    { name = "Andy Miles", email = "andy@proquickly.com" }
+    { name = "Andy Miles", email = "andy@proquinkly.com" }
 ]
 requires-python = ">=3.13"
 dependencies = [
     "beautifulsoup4>=4.12,<5",
     "bs4>=0.0.2",
+    "chromadb>=0.4.0",
 ]
 
 [project.scripts]
