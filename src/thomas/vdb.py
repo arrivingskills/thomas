@@ -34,9 +34,12 @@ def _ollama_generate(prompt: str, model: str = OLLAMA_MODEL) -> str:
         if url.scheme == "https"
         else http.client.HTTPConnection
     )
-    conn = conn_cls(
-        url.hostname, url.port or (443 if url.scheme == "https" else 11434), timeout=60
-    )
+    # Windows needs explicit host resolution - use 127.0.0.1 if hostname is None or localhost
+    hostname = url.hostname or "localhost"
+    if hostname == "localhost":
+        hostname = "127.0.0.1"
+    port = url.port or (443 if url.scheme == "https" else 11434)
+    conn = conn_cls(hostname, port, timeout=60)
     try:
         body = {"model": model, "prompt": prompt, "stream": False}
         payload = json.dumps(body).encode("utf-8")
