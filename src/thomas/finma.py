@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import ssl
 import sys
 import urllib.request
 import xml.etree.ElementTree as ET
@@ -22,7 +23,12 @@ class RssItem:
 
 
 def fetch_rss(url: str = RSS_URL, timeout: float = 20.0) -> bytes:
-    with urllib.request.urlopen(url, timeout=timeout) as resp:
+    # Create SSL context that doesn't verify certificates (for macOS certificate issues)
+    ssl_context = ssl.create_default_context()
+    ssl_context.check_hostname = False
+    ssl_context.verify_mode = ssl.CERT_NONE
+
+    with urllib.request.urlopen(url, timeout=timeout, context=ssl_context) as resp:
         return resp.read()
 
 
