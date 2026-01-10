@@ -1,3 +1,34 @@
+# Thomas - RAG Application with Ollama
+
+A Python-based Retrieval-Augmented Generation (RAG) application using ChromaDB for vector storage and Ollama for LLM inference.
+
+## 🪟 Windows Users - START HERE!
+
+**This application has Windows-specific requirements and configuration steps.**
+
+👉 **See [WINDOWS_QUICKSTART.md](WINDOWS_QUICKSTART.md)** for fast setup (5 minutes)  
+👉 **See [HOWTO.md](HOWTO.md)** for detailed troubleshooting and architecture
+
+### Quick Test
+After setup, run the connection diagnostic tool:
+```bash
+python test_windows_connection.py
+```
+
+---
+
+## Features
+
+- Fetches RSS feeds from FINMA (Swiss Financial Market Supervisory Authority)
+- Creates embeddings and stores them in ChromaDB
+- Performs semantic search on stored documents
+- Uses Ollama (llama3.1) for response generation
+- Cross-platform support (macOS, Linux, Windows)
+
+---
+
+## Python Exercises (Original Content)
+
 Positive, Negative, or Zero Counter
 Create a list of at least 10 integers (mix of positive, negative, and zero).
 Use a for loop to go through each number.

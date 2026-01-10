@@ -39,7 +39,19 @@ def _ollama_generate(prompt: str, model: str = OLLAMA_MODEL) -> str:
     if hostname == "localhost":
         hostname = "127.0.0.1"
     port = url.port or (443 if url.scheme == "https" else 11434)
-    conn = conn_cls(hostname, port, timeout=60)
+
+    try:
+        conn = conn_cls(hostname, port, timeout=60)
+    except Exception as e:
+        raise ConnectionError(
+            f"Failed to create connection to {hostname}:{port}. "
+            f"Error: {e}\n"
+            f"On Windows, ensure:\n"
+            f"  1. Ollama is running (check system tray or run 'ollama serve')\n"
+            f"  2. Windows Firewall allows connections on port {port}\n"
+            f"  3. Ollama is bound to 0.0.0.0 or 127.0.0.1"
+        )
+
     try:
         body = {"model": model, "prompt": prompt, "stream": False}
         payload = json.dumps(body).encode("utf-8")
